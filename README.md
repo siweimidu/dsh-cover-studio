@@ -291,3 +291,65 @@ robocopy . C:\Users\<你>\.dsh\profiles\desktop\node_modules\@local\dsh-cover-st
 MIT © 2026 dsh-cover-studio contributors
 
 商标归各自权利方所有，图标仅用于识别目的。
+
+## 视口持久化
+
+### 问题
+
+每次打开工作台，画板都贴在左上角，不记得上次看到哪里。
+
+```js
+var _pan = useState({ x: 0, y: 0 });   // ← 永远从原点开始
+var _zoom = useState(0);               // ← 永远 fit 模式
+```
+
+### 修复
+
+新增存储键，记录 `pan` / `zoom` / `activeBoard`：
+
+```
+dsh.cover-studio.view.v1
+```
+
+```js
+function loadView() {
+  var v = JSON.parse(localStorage.getItem(VIEW_KEY));
+  if (!v || typeof v.panX !== "number") return null;
+  return v;
+}
+
+var _pan = useState(savedView
+  ? { x: savedView.panX, y: savedView.panY }
+  : { x: 0, y: 0 });
+```
+
+### 防抖写入
+
+平移时 `pointermove` 每帧触发，localStorage 是同步 API，直接写会卡。400ms 防抖：
+
+```js
+viewTimer.current = setTimeout(function () {
+  saveView({ panX: pan.x, panY: pan.y, zoom: zoom, activeBoard: activeBoard });
+}, 400);
+```
+
+### 首次打开自动居中
+
+没有存档时（第一次用），画板自动居中而非贴左上角：
+
+```js
+var fit = Math.min((vw - 80) / spec.w, (vh - 80) / spec.h);
+setZoom(fit);
+setPan({
+  x: (vw - spec.w * fit) / 2 - bx * fit,
+  y: (vh - spec.h * fit) / 2 - by * fit
+});
+```
+
+### 存档校验
+
+| 情况 | 结果 |
+|---|---|
+| JSON 损坏 | 返回 null，走首次居中 |
+| 缺 `panX`/`panY` | 返回 null |
+| 正常 | 精确恢复 |
