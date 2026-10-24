@@ -16,9 +16,13 @@
   },
   "files": [
     "lib/**/*.js",
+    "src/client/engine.js",
+    "src/client/skill-bridge.js",
     "templates/**/*.html",
     "cordis.patch.yml",
-    "README.md"
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "dsh": {
     "bundle": {
