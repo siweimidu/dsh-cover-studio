@@ -1,0 +1,121 @@
+[
+  {
+    "id": "openai",
+    "name": "GPT / OpenAI",
+    "file": "openai.svg",
+    "src": "openai",
+    "hasColor": false
+  },
+  {
+    "id": "claude",
+    "name": "Claude",
+    "file": "claude.svg",
+    "src": "claude-color",
+    "hasColor": true
+  },
+  {
+    "id": "gemini",
+    "name": "Gemini",
+    "file": "gemini.svg",
+    "src": "gemini-color",
+    "hasColor": true
+  },
+  {
+    "id": "deepseek",
+    "name": "DeepSeek",
+    "file": "deepseek.svg",
+    "src": "deepseek-color",
+    "hasColor": true
+  },
+  {
+    "id": "qwen",
+    "name": "Qwen",
+    "file": "qwen.svg",
+    "src": "qwen-color",
+    "hasColor": true
+  },
+  {
+    "id": "meta",
+    "name": "Llama / Meta",
+    "file": "meta.svg",
+    "src": "meta-color",
+    "hasColor": true
+  },
+  {
+    "id": "minimax",
+    "name": "MiniMax",
+    "file": "minimax.svg",
+    "src": "minimax-color",
+    "hasColor": true
+  },
+  {
+    "id": "grok",
+    "name": "Grok / xAI",
+    "file": "grok.svg",
+    "src": "grok",
+    "hasColor": false
+  },
+  {
+    "id": "kimi",
+    "name": "Kimi",
+    "file": "kimi.svg",
+    "src": "kimi-color",
+    "hasColor": true
+  },
+  {
+    "id": "zhipu",
+    "name": "GLM / 智谱",
+    "file": "zhipu.svg",
+    "src": "zhipu-color",
+    "hasColor": true
+  },
+  {
+    "id": "mistral",
+    "name": "Mistral",
+    "file": "mistral.svg",
+    "src": "mistral-color",
+    "hasColor": true
+  },
+  {
+    "id": "doubao",
+    "name": "豆包",
+    "file": "doubao.svg",
+    "src": "doubao-color",
+    "hasColor": true
+  },
+  {
+    "id": "hunyuan",
+    "name": "混元",
+    "file": "hunyuan.svg",
+    "src": "hunyuan-color",
+    "hasColor": true
+  },
+  {
+    "id": "mimo",
+    "name": "MiMo",
+    "file": "mimo.svg",
+    "src": "xiaomimimo",
+    "hasColor": false
+  },
+  {
+    "id": "step",
+    "name": "Step",
+    "file": "step.svg",
+    "src": "stepfun-color",
+    "hasColor": true
+  },
+  {
+    "id": "spark",
+    "name": "星火 Spark",
+    "file": "spark.svg",
+    "src": "spark-color",
+    "hasColor": true
+  },
+  {
+    "id": "ernie",
+    "name": "文心 ERNIE",
+    "file": "ernie.svg",
+    "src": "wenxin-color",
+    "hasColor": true
+  }
+]

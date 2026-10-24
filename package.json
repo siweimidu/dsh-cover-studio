@@ -1,0 +1,65 @@
+{
+  "name": "dsh-cover-studio",
+  "version": "1.0.0",
+  "description": "AI 日报封面工作台 — DeepSeek Harness 全页插件：169 个 AI 模型图标、无限画布拖拽编辑、RSS 生成、TTS 配音、HyperFrames 视频渲染",
+  "license": "MIT",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/**/*.js",
+    "templates/**/*.html",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ],
+      "immediately": true
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": ">=4.0.0"
+  },
+  "dependencies": {
+    "schemastery": "^3.18.0"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "ai-daily",
+    "cover-editor",
+    "canvas-editor",
+    "tts",
+    "hyperframes"
+  ],
+  "author": "",
+  "homepage": "https://github.com/siweimidu/dsh-cover-studio#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/siweimidu/dsh-cover-studio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/siweimidu/dsh-cover-studio/issues"
+  }
+}
