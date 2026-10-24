@@ -109,39 +109,59 @@ https://hex2077.dev/rss-zh-CN.xml
 
 ## 安装
 
-### 前置
+### 方式一：从 GitHub 安装（推荐）
 
-- DeepSeek Harness ≥ 最新版
-- Node.js ≥ 22
-- （可选）AI 日报 Skill 解压到 `D:\Skills\AI日报\`
+在 DSH 的 **设置 → 插件 → 添加插件** 里输入：
 
-### 从源码安装
+```
+dsh-cover-studio@github:siweimidu/dsh-cover-studio
+```
+
+或命令行：
+
+```bash
+dsh plugin --profile desktop add github:siweimidu/dsh-cover-studio
+```
+
+### 方式二：从 git URL 安装
+
+```bash
+dsh plugin --profile desktop add git+https://github.com/siweimidu/dsh-cover-studio.git
+```
+
+### 方式三：从 npm 安装
+
+```bash
+dsh plugin --profile desktop add dsh-cover-studio
+```
+
+### 方式四：本地路径
 
 ```bash
 git clone https://github.com/siweimidu/dsh-cover-studio.git
-cd dsh-cover-studio
-
-# 装到 DSH 的 desktop profile
-dsh plugin --profile desktop add file:$(pwd)
+dsh plugin --profile desktop add file:./dsh-cover-studio
 ```
-
-Windows：
-
-```powershell
-dsh plugin --profile desktop add file:D:\path\to\dsh-cover-studio
-```
-
-重启 DSH，左侧栏出现「封面工作台」。
 
 ### 手动安装
 
 把整个目录复制到：
 
 ```
-C:\Users\<你>\.dsh\profiles\desktop\node_modules\@local\dsh-cover-studio\
+C:\Users\<你>\.dsh\profiles\desktop\node_modules\dsh-cover-studio\
 ```
 
----
+### 环境要求
+
+| 项 | 要求 | 说明 |
+|---|---|---|
+| DeepSeek Harness | ≥ 最新版 | — |
+| Node.js | ≥ 22 | — |
+| AI 日报 Skill | 可选 | 缺少时「文本生成 / 渲染视频」不可用，其余功能正常 |
+| edge-tts | 可选 | 本地配音需要，云端 TTS 不需要 |
+| HyperFrames | 可选 | 视频渲染需要，`npx hyperframes` |
+
+安装后**重启 DSH**，左侧栏出现「封面工作台」。
+
 
 ## 使用
 
