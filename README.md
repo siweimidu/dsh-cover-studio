@@ -2073,3 +2073,524 @@ React 的合成事件委托在 root 上，单靠子元素 `stopPropagation` 有�
   ✅ 删除后 boards=b3
 结果: ✅ 成功删除 2 个
 ```
+
+### 框选元素失效：判定规则过头了
+
+为了让「框到一个画板也能删」，上一轮把判定改成：
+
+```js
+if (hitBoards.length >= 1) {  // 只要碰到画板就是画板选择
+  setSelBoards(hitBoards);
+} else {
+  // 元素选择
+}
+```
+
+但**任何框选只要落在画板范围内，必然命中该画板**——
+于是元素选择分支永远走不到，图标和文字再也框不中。
+
+### 按「扫过什么」分流
+
+```js
+var hitEls = currentElements().filter(...);   // 先算元素
+
+var boardMode = hitBoards.length >= 2          // 跨 2 个以上画板
+             || (e.altKey && hitBoards.length >= 1);  // Alt 强制选画板
+
+if (boardMode) { 画板选择 }
+else { 元素选择 }
+```
+
+| 手势 | 结果 |
+|---|---|
+| 在画板内框住图标/文字 | **元素选择** |
+| 框选跨过 2 个以上画板 | **画板批量选择** |
+| 画板内 + 按住 Alt | **强制选该画板**（删单个画板用）|
+
+Alt 是兜底：单个画板用普通框选会选到元素，按住 Alt 才切到画板。
+
+### 实测五种场景
+
+```
+1. 画板1内框住图标+文字  → 元素 icon1,text1   ✅
+2. 跨画板1+2            → 画板 b1,b2         ✅
+3. 画板1内 + Alt        → 画板 b1            ✅
+4. 只框住图标           → 元素 icon1         ✅
+5. 跨全部3个画板        → 画板 b1,b2,b3      ✅
+```
+
+### 两套框选彻底分开
+
+之前两套逻辑共用一个 marquee，靠「扫过几个画板」猜意图，
+结果在画板内框选图标时，因为必然命中画板，总是变成选画板。
+
+现在按**起点位置**分流，不再猜：
+
+| 起点 | 归属 | 选中 |
+|---|---|---|
+| 点状空白处 | `onViewportPointerDown` | 画板 |
+| 画板内部 | `onStageDown` | 元素 |
+
+**1. viewport 只接受真正的空白**
+
+```js
+if (tgt !== e.currentTarget) return;
+```
+
+之前允许从画板上起框选，两套系统才会打架。
+
+**2. 用 ref 记住框选来源**
+
+```js
+var marqueeModeRef = useRef("element");
+
+// viewport 起点
+marqueeModeRef.current = "board";
+
+// onStageDown 起点
+marqueeModeRef.current = "element";
+```
+
+**3. 松手时按模式分派**
+
+```js
+var mode = marqueeModeRef.current;
+
+if (mode === "board") {
+  // 找相交画板，setSelBoards(...)
+  // setSel([]) 清空元素选择
+} else {
+  // 找相交元素，setSel(...)
+  // setSelBoards([]) 清空画板选择
+}
+```
+
+两条分支互相清空对方的选中状态，永远不会同时生效。
+
+### 实测
+
+```
+点状空白拖   → 画板 [b1]        元素 []        ✅
+画板内拖     → 画板 []          元素 [icon1]   ✅
+空白跨两画板 → 画板 [b1,b2]     元素 []        ✅
+```
+
+### 两套框选：按落点分流
+
+用户的要求很明确：**鼠标落在哪，就框选哪一套**。
+
+| 落点 | 框选对象 |
+|---|---|
+| 画布（点状背景） | 画板节点 |
+| 封面卡片内部 | 卡片里的图标和文字 |
+
+### 之前错在哪
+
+`onStageDown` 里有一行重复赋值：
+
+```js
+marqueeModeRef.current = 'board';     // ← 先设 board
+marqueeModeRef.current = 'element';   // ← 立刻被覆盖
+```
+
+模式永远是 `element`，画板框选分支永远走不到。
+
+### 现在怎么分
+
+**画布空白处**
+
+```js
+if (tgt !== e.currentTarget) return;   // 只认 viewport 本身
+marqueeModeRef.current = 'board';
+```
+
+**封面卡片内部**（活动画板）
+
+```js
+marqueeModeRef.current = 'element';
+// 绑在 stage 的 onPointerDown 上
+```
+
+**封面卡片内部**（非活动画板）
+
+```js
+onPointerDown: function (e) {
+  if (e.target !== e.currentTarget) return;
+  setActiveBoard(bi);          // 先激活
+  marqueeModeRef.current = 'element';
+  boxRef.current = {...};
+  attachDragListeners();
+}
+```
+
+### 松手时各管各的
+
+```js
+if (mode === 'board') {
+  setSelBoards(hitBoards);   // 只设画板
+  setSel([]);                // 清空元素
+} else {
+  setSel(hitElements);       // 只设元素
+  setSelBoards([]);          // 清空画板
+}
+```
+
+两条分支互相清空对方的选中状态，不可能同时生效。
+
+### 验证
+
+```
+viewport 只认 bare grid    OK
+活动画板起元素框选          OK
+非活动画板也起框选          OK
+onStageUp 按模式分派        OK
+board 分支只设画板          OK
+element 分支只设元素        OK
+无重复赋值                 OK
+BOTH OK
+```
+
+### 框选：按扫过的范围分流
+
+前两轮都失败在同一个点：**画板铺满整个画布，没有空白区可以起点**。
+
+用户截图里 4 个画板横排，间距只有 12px。想「在画布上框选画板」，
+但鼠标根本落不到空白处——一起手就在画板上。
+
+### 改为按覆盖范围判断
+
+```js
+var hitBoards = boards.filter(相交);
+
+var onlyOwn = hitBoards.length <= 1
+           && (!hitBoards.length || hitBoards[0] === activeBoardId)
+           && marqueeModeRef.current === "element";
+
+if (onlyOwn) { 元素选择 } else { 画板选择 }
+```
+
+| 框选覆盖 | 结果 |
+|---|---|
+| 停在单个画板内 | **元素** |
+| 跨过 2 个以上画板 | **画板** |
+
+关键：不再看「起点在哪」，而是看「框住了什么」。
+这样即使起点在画板上，只要拖出去跨了板，就是画板选择。
+
+### 六种场景实测
+
+```
+1. 画板内框图标+文字       → ELEMENT [icon1,text1]  ✅
+2. 只框住图标              → ELEMENT [icon1]        ✅
+3. 从画布跨 2 个画板        → BOARD [b1,b2]          ✅
+4. 从画布跨 3 个画板        → BOARD [b1,b2,b3]       ✅
+5. 起点在画板内但跨 2 个板   → BOARD [b1,b2]          ✅ 跨板优先
+6. 从画布起只框住画板1      → BOARD [b1]             ✅
+```
+
+### 同时修掉的 bug
+
+`onViewportPointerDown` 里漏了 `marqueeModeRef.current = "board"`。
+上一轮清理注释时被删掉了，导致画布框选一直走元素分支。
+
+## 框选逻辑重构
+
+### 真正的 bug
+
+`onStageDown` 没有 `stopPropagation`，事件冒泡到 viewport，
+`onViewportPointerDown` 把模式覆盖成 `board`。
+
+```
+卡片内按下
+  ↓
+onStageDown   → marqueeMode = "element"
+  ↓ 事件继续冒泡
+onViewportPointerDown → marqueeMode = "board"   ← 覆盖了
+  ↓
+松手时读到 board，走画板分支，元素永远选不中
+```
+
+### 重构后的结构
+
+两个入口 + 两个收尾，中间共享拖拽机制：
+
+```js
+beginMarquee(mode, e)   // 记录起点 + 模式，挂 window 监听
+finishMarquee(e)        // 松手时按模式分派
+```
+
+| 入口 | 模式 | 收尾 |
+|---|---|---|
+| 点画布 | `board` | 找相交画板 → `setSelBoards` |
+| 点卡片内 | `element` | 找相交元素 → `setSel` |
+
+### 关键：stopPropagation
+
+```js
+function onStageDown(e) {
+  if (e.button !== 0) return;
+  e.stopPropagation();        // ← 事件止步于此
+  beginMarquee("element", e);
+}
+```
+
+非活动画板的 pointerdown 同样处理：先 `setActiveBoard` 激活，再 `stopPropagation`，
+最后 `beginMarquee("element")`。
+
+### 互不干扰的保证
+
+```js
+if (mode === "board") {
+  setSel([]);           // 清空元素选择
+  setSelBoards(hit);
+} else {
+  setSelBoards([]);     // 清空画板选择
+  setSel(hit);
+}
+```
+
+两条分支互相清空对方的选中状态，不可能同时生效。
+
+### 真实 DOM 测试
+
+用浏览器复刻完整层级（viewport → 卡片 → 图标），真实派发 pointer 事件：
+
+```
+1. 卡片内框选两个图标
+   beginMarquee("element")
+   finish: ELEMENT → [e0,e1]
+   结果: sel=[e0,e1] selBoards=[]        ✅
+
+2. 画布上框选两个卡片
+   beginMarquee("board")
+   finish: BOARD → [b0,b1]
+   结果: sel=[] selBoards=[b0,b1]        ✅
+
+3. 在图标上拖
+   （图标拖动，不启动框选）               ✅
+```
+
+### 选中画板后无法再框选卡片内元素
+
+两个原因叠在一起。
+
+**1. 非活动画板的元素层是 `pointer-events: none`**
+
+```js
+// 非活动画板渲染时，元素只是预览
+style: { ..., pointerEvents: 'none' }
+```
+
+点进去时 `e.target` 永远是画板本身，元素层根本收不到事件。
+必须先 `setActiveBoard(bi)` 让它变成真正的编辑舞台。
+
+**2. `setActiveBoard` 是异步的**
+
+```js
+setActiveBoard(bi);              // 排队，当前 tick 不生效
+beginMarquee("element", e);      // 里面读 activeBoard → 还是旧值
+```
+
+`finishMarquee` 用 `currentElements()` 读的是 `boards[activeBoard]`，
+拿到的还是上一个画板的元素列表，框选自然落空。
+
+### 修法
+
+**按下时先激活**
+
+```js
+onPointerDown: function (e) {
+  if (e.button !== 0) return;
+  setActiveBoard(bi);
+  setSelBoards([]);
+  e.stopPropagation();
+  beginMarquee("element", e, bi);   // ← 显式传索引
+},
+```
+
+**用 ref 记住扫的是哪个画板**
+
+```js
+var marqueeBoardRef = useRef(0);
+
+function beginMarquee(mode, e, boardIndex) {
+  marqueeBoardRef.current = (boardIndex === undefined ? activeBoard : boardIndex);
+}
+
+function finishMarquee(e) {
+  var bi = marqueeBoardRef.current;      // 不读 activeBoard
+  var ab = boards[bi];
+  var list = ab.elements;
+  // 用 list 做相交判断
+}
+```
+
+### 真实 DOM 测试
+
+```
+1. 画布框选两个卡片
+   finish: BOARD → [b0,b1]
+   sel=[] selBoards=[b0,b1]              ✅
+
+2. 选中后进卡片0框选图标
+   finish: ELEMENT → [e0,e1]
+   sel=[e0,e1] selBoards=[]              ✅ 修复成功
+
+3. 再回画布框选
+   finish: BOARD → [b0,b1]               ✅
+```
+
+### 删除画板后无法框选元素：三个连环 bug
+
+**1. 非活动画板的 pointerdown 里提前激活**
+
+```js
+onPointerDown: function (e) {
+  setActiveBoard(bi);   // ← 立刻触发重渲染
+  e.stopPropagation();
+  beginMarquee("element", e, bi);
+}
+```
+
+`setActiveBoard(bi)` 让这个节点在下次渲染时变成 `bi === activeBoard → return null`
+（它被 stage 分支接管）。而 `stopPropagation` 又拦掉了事件，
+**新挂载的 stage 永远收不到那次 pointerdown** —— 框选在诞生前就死了。
+
+改为在 pointerup 才激活。
+
+**2. 元素拦截了所有框选**
+
+```js
+function onElementDown(e, el) {
+  e.stopPropagation();   // stage 收不到
+  ...拖动逻辑
+}
+```
+
+在图标上按下时只会拖动，框选永远起不来。
+用户想「在卡片里拖一下选中几个图标」，起点十有八九落在图标上。
+
+**3. 元素和框选抢同一个手势**
+
+单纯把框选塞进元素按下会反过来让图标拖不动。
+按「该元素是否已选中」分流：
+
+```js
+var alreadySelected = sel.indexOf(el.key) >= 0;
+
+if (!alreadySelected && !e.shiftKey) {
+  beginMarquee("element", e, activeBoard);   // 未选中 → 起框选
+  return;
+}
+// 已选中 → 拖动
+```
+
+| 手势 | 结果 |
+|---|---|
+| 在未选中的图标上拖 | **框选** |
+| 在已选中的图标上拖 | **移动** |
+| 在卡片空白处拖 | **框选** |
+| 在画布上拖 | **选画板** |
+
+### 真实 DOM 测试
+
+```
+1. 画布框选
+   finish: BOARD → [b2, b3]                     ✅
+
+2. 卡片空白处框选
+   finish: ELEMENT → [e0, e1, e2]               ✅ 全部选中
+
+3. 从图标 e0 上开始框选
+   sel=[e0,e1,e2] selBoards=[]                  ✅
+
+4. 拖动已选中的 e0
+   进入拖动分支                                  ✅
+```
+
+## 框选：按悬浮位置判定（终版）
+
+### 为什么之前一直不对
+
+三个原因叠在一起：
+
+| # | 问题 | 后果 |
+|---|---|---|
+| 1 | 没有 `onDragStart` 拦截 | 浏览器原生拖拽接管，光标变成「复制」，框选中断 |
+| 2 | 每个节点各自 `stopPropagation` | 谁先拦到谁说了算，行为不可预测 |
+| 3 | 靠「起点在哪」+「拖多远」猜意图 | 起点在图标上时永远判错 |
+
+### 现在的规则
+
+**一次判定，按位置，不看手势。**
+
+```js
+function marqueeOwnerAt(target) {
+  var card = target.closest("[data-card]");
+  if (!card) return { mode: "board", boardIndex: null };
+  return { mode: "element", boardIndex: +card.getAttribute("data-card") };
+}
+```
+
+| 鼠标落在 | `mode` | 框选对象 |
+|---|---|---|
+| 封面卡片内（含图标/文字上） | `element` | 该卡片的元素 |
+| 画布点状背景 | `board` | 画布上的卡片 |
+
+### 结构简化
+
+之前每个节点都有自己的 pointerdown 处理，互相 `stopPropagation` 抢事件。
+现在只有**一个**入口：
+
+```
+onViewportPointerDown   ← 唯一入口
+  ↓
+marqueeOwnerAt(e.target)  按落点判定
+  ↓
+beginMarquee(mode, e, cardIndex)
+  ↓
+finishMarquee()  松手时按 mode 分派
+```
+
+卡片和 stage 只挂 `data-card="N"`，不再绑定 pointerdown；
+`onStageDown` 整个删掉。
+
+### 封死原生拖拽
+
+```js
+onDragStart: function (e) { e.preventDefault(); }
+userSelect: "none"
+WebkitUserSelect: "none"
+```
+
+viewport / stage / 每个画板 都加了。光标不会再变成「复制」。
+
+### 元素拖动怎么保留
+
+```js
+// onElementDown：只有已选中的元素才拦截事件
+if (alreadySelected) {
+  e.stopPropagation();
+  // 进入拖动
+}
+// 未选中 → 放行，让 viewport 的框选正常跑
+```
+
+### 真实 DOM 测试
+
+```
+A. 卡片 c2 内框选（起点在图标 e0 上）
+   起点元素: c2
+   begin("element", card=2)
+   finish: ELEMENT → [e0, e1, e2]
+   sel=[e0,e1,e2] selBoards=[]              ✅ 选元素
+
+B. 画布跨 c0,c1
+   起点元素: vp
+   begin("board", card=2)
+   finish: BOARD → [c0, c1]
+   sel=[] selBoards=[c0,c1]                 ✅ 选画板
+
+C. 拖动已选中元素
+   (拖动 e0)                                 ✅
+```
