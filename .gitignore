@@ -9,3 +9,6 @@ dist/
 .idea/
 *.tsbuildinfo
 coverage/
+
+# Intermediate render artefacts
+.cover-studio-tmp.html
