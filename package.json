@@ -1,13 +1,17 @@
 {
   "name": "dsh-cover-studio",
   "version": "1.0.0",
-  "description": "AI 日报封面工作台 — DeepSeek Harness 全页插件：169 个 AI 模型图标、无限画布拖拽编辑、RSS 生成、TTS 配音、HyperFrames 视频渲染",
+  "description": "AI 日报封面工作台 — DeepSeek Harness 全页插件 + CLI：171 个 AI 模型图标、无限画布拖拽编辑、打散排布、像素级对齐 Skill 版式，所有功能可在命令行与 Agent 工具中调用",
   "license": "MIT",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
     ".": "./lib/index.js",
     "./client": "./lib/client.js",
+    "./cli": "./lib/cli.js",
+    "./shared/layout": "./lib/shared/layout.js",
+    "./shared/scene": "./lib/shared/scene.js",
+    "./shared/render": "./lib/shared/render.js",
     "./package.json": "./package.json"
   },
   "files": [
@@ -15,6 +19,8 @@
     "src/client/engine.js",
     "src/client/skill-bridge.js",
     "templates/**/*.html",
+    "docs/**/*.png",
+    "docs/**/*.md",
     "cordis.patch.yml",
     "README.md",
     "LICENSE",
@@ -69,9 +75,14 @@
     }
   },
   "scripts": {
-    "check": "node --check lib/index.js && node --check lib/client.js"
+    "check": "node --check lib/index.js && node --check lib/client.js && node --check lib/cli.js && node --check lib/shared/layout.js && node --check lib/shared/scene.js && node --check lib/shared/render.js",
+    "cli": "node lib/cli.js",
+    "doctor": "node lib/cli.js doctor"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "bin": {
+    "cover-studio": "./lib/cli.js"
   }
 }
